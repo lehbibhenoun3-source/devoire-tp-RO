@@ -1,54 +1,61 @@
-from itertools import permutations
-from donnees import demande, distance
+from pyomo.environ import value
+from pyomo.opt import SolverFactory
 
-clients_trajet1 = [1, 2, 4]
-clients_trajet2 = [3, 5, 6]
+from model import create_model
+from donnees import nodes, demand, truck_capacity, distance
 
-
-def meilleur_trajet(clients):
-    meilleur_cout = float("inf")
-    meilleur_chemin = None
-
-    for permutation_clients in permutations(clients):
-
-        trajet = [0] + list(permutation_clients) + [0]
-
-        cout = 0
-
-        for i in range(len(trajet) - 1):
-            cout += distance[
-                (trajet[i], trajet[i + 1])
-            ]
-
-        if cout < meilleur_cout:
-            meilleur_cout = cout
-            meilleur_chemin = trajet
-
-    return meilleur_chemin, meilleur_cout
-
-
-trajet1, cout1 = meilleur_trajet(clients_trajet1)
-trajet2, cout2 = meilleur_trajet(clients_trajet2)
-
-print("===== TRAJETS FINAUX =====")
-
-print(
-    "Trajet 1 :",
-    " → ".join(map(str, trajet1))
+model = create_model(
+    nodes,
+    demand,
+    truck_capacity,
+    distance
 )
-print("Distance :", cout1, "km")
 
-print()
+solver = SolverFactory("highs")
+solver.solve(model)
 
-print(
-    "Trajet 2 :",
-    " → ".join(map(str, trajet2))
-)
-print("Distance :", cout2, "km")
+routes = {}
 
-print()
-print(
-    "Distance totale =",
-    cout1 + cout2,
-    "km"
-)
+print("===== FINAL ROUTES =====")
+
+total_distance = 0
+
+for k in model.K:
+    route = [0]
+    current = 0
+
+    while True:
+        next_node = None
+
+        for j in model.N:
+            if j != current and value(model.x[current, j, k]) == 1:
+                next_node = j
+                break
+
+        if next_node is None:
+            break
+
+        route.append(next_node)
+
+        if next_node == 0:
+            break
+
+        current = next_node
+
+    if len(route) > 2:
+        routes[k] = route
+
+        cost = 0
+        for i in range(len(route)-1):
+            cost += distance[(route[i], route[i+1])]
+
+        total_distance += cost
+
+        print(
+            f"Trip {k}:",
+            " → ".join(map(str, route))
+        )
+        print(f"Distance: {cost} km")
+        print()
+
+print(f"Total Distance = {total_distance} km")
