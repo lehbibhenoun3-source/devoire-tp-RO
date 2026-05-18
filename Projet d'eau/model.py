@@ -12,10 +12,8 @@ def create_model(nodes, demand, capacity, distance):
 
     model.x = Var(model.N, model.N, model.K, domain=Binary)
 
-    # Variable MTZ
     model.u = Var(model.C, model.K, bounds=(1, len(nodes)))
 
-    # ---------------- OBJECTIVE ----------------
     def obj_rule(model):
         return sum(
             distance[i, j] * model.x[i, j, k]
@@ -26,7 +24,6 @@ def create_model(nodes, demand, capacity, distance):
 
     model.obj = Objective(rule=obj_rule, sense=minimize)
 
-    # ---------------- VISIT ONCE ----------------
     def visit_once_rule(model, c):
         return sum(
             model.x[i, c, k]
@@ -36,7 +33,6 @@ def create_model(nodes, demand, capacity, distance):
 
     model.visit_once = Constraint(model.C, rule=visit_once_rule)
 
-    # ---------------- FLOW ----------------
     def flow_rule(model, c, k):
         return (
             sum(model.x[i, c, k] for i in model.N if i != c)
@@ -46,19 +42,16 @@ def create_model(nodes, demand, capacity, distance):
 
     model.flow = Constraint(model.C, model.K, rule=flow_rule)
 
-    # ---------------- START DEPOT ----------------
     def start_rule(model, k):
         return sum(model.x[0, j, k] for j in model.C) == 1
 
     model.start = Constraint(model.K, rule=start_rule)
 
-    # ---------------- RETURN DEPOT ----------------
     def return_rule(model, k):
         return sum(model.x[i, 0, k] for i in model.C) == 1
 
     model.return_trip = Constraint(model.K, rule=return_rule)
 
-    # ---------------- CAPACITY ----------------
     def capacity_rule(model, k):
         return sum(
             demand[c] *
@@ -71,7 +64,6 @@ def create_model(nodes, demand, capacity, distance):
 
     model.capacity = Constraint(model.K, rule=capacity_rule)
 
-    # ---------------- NO SELF LOOP ----------------
     def self_loop_rule(model, i, k):
         return model.x[i, i, k] == 0
 
@@ -81,7 +73,6 @@ def create_model(nodes, demand, capacity, distance):
         rule=self_loop_rule
     )
 
-    # ---------------- SUBTOUR ELIMINATION ----------------
     def subtour_rule(model, i, j, k):
         if i != j:
             return (
